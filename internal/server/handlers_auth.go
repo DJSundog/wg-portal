@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strings"
 
+	csrf "github.com/utrack/gin-csrf"
+
 	"github.com/gin-gonic/gin"
 	"github.com/h44z/wg-portal/internal/authentication"
 	"github.com/h44z/wg-portal/internal/users"
@@ -31,6 +33,7 @@ func (s *Server) GetLogin(c *gin.Context) {
 		"error":   authError != "",
 		"message": errMsg,
 		"static":  s.getStaticData(),
+		"Csrf":    csrf.GetToken(c),
 	})
 }
 
@@ -98,7 +101,7 @@ func (s *Server) PostLogin(c *gin.Context) {
 				Firstname: userData.Firstname,
 				Lastname:  userData.Lastname,
 				Phone:     userData.Phone,
-			}); err != nil {
+			}, s.wg.Cfg.GetDefaultDeviceName()); err != nil {
 				s.GetHandleError(c, http.StatusInternalServerError, "login error", "failed to update user data")
 				return
 			}
@@ -121,9 +124,10 @@ func (s *Server) PostLogin(c *gin.Context) {
 	sessionData.Email = user.Email
 	sessionData.Firstname = user.Firstname
 	sessionData.Lastname = user.Lastname
+	sessionData.DeviceName = s.wg.Cfg.DeviceNames[0]
 
 	// Check if user already has a peer setup, if not create one
-	if err := s.CreateUserDefaultPeer(user.Email); err != nil {
+	if err := s.CreateUserDefaultPeer(user.Email, s.wg.Cfg.GetDefaultDeviceName()); err != nil {
 		// Not a fatal error, just log it...
 		logrus.Errorf("failed to automatically create vpn peer for %s: %v", sessionData.Email, err)
 	}

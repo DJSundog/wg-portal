@@ -4,14 +4,14 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	wg_portal "github.com/h44z/wg-portal"
+	wgportal "github.com/h44z/wg-portal"
 )
 
 func SetupRoutes(s *Server) {
 	// Startpage
 	s.server.GET("/", s.GetIndex)
 	s.server.GET("/favicon.ico", func(c *gin.Context) {
-		file, _ := wg_portal.Statics.ReadFile("assets/img/favicon.ico")
+		file, _ := wgportal.Statics.ReadFile("assets/img/favicon.ico")
 		c.Data(
 			http.StatusOK,
 			"image/x-icon",
@@ -32,6 +32,7 @@ func SetupRoutes(s *Server) {
 	admin.GET("/device/edit", s.GetAdminEditInterface)
 	admin.POST("/device/edit", s.PostAdminEditInterface)
 	admin.GET("/device/download", s.GetInterfaceConfig)
+	admin.GET("/device/write", s.GetSaveConfig)
 	admin.GET("/device/applyglobals", s.GetApplyGlobalConfig)
 	admin.GET("/peer/edit", s.GetAdminEditPeer)
 	admin.POST("/peer/edit", s.PostAdminEditPeer)

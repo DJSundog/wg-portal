@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/h44z/wg-portal/internal/users"
+	csrf "github.com/utrack/gin-csrf"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -49,22 +50,15 @@ func (s *Server) GetAdminUsersIndex(c *gin.Context) {
 
 	dbUsers := s.users.GetFilteredAndSortedUsersUnscoped(currentSession.SortedBy["users"], currentSession.SortDirection["users"], currentSession.Search["users"])
 
-	c.HTML(http.StatusOK, "admin_user_index.html", struct {
-		Route      string
-		Alerts     []FlashData
-		Session    SessionData
-		Static     StaticData
-		Users      []users.User
-		TotalUsers int
-		Device     Device
-	}{
-		Route:      c.Request.URL.Path,
-		Alerts:     GetFlashes(c),
-		Session:    currentSession,
-		Static:     s.getStaticData(),
-		Users:      dbUsers,
-		TotalUsers: len(s.users.GetUsers()),
-		Device:     s.peers.GetDevice(),
+	c.HTML(http.StatusOK, "admin_user_index.html", gin.H{
+		"Route":       c.Request.URL.Path,
+		"Alerts":      GetFlashes(c),
+		"Session":     currentSession,
+		"Static":      s.getStaticData(),
+		"Users":       dbUsers,
+		"TotalUsers":  len(s.users.GetUsers()),
+		"Device":      s.peers.GetDevice(currentSession.DeviceName),
+		"DeviceNames": s.GetDeviceNames(),
 	})
 }
 
@@ -77,21 +71,16 @@ func (s *Server) GetAdminUsersEdit(c *gin.Context) {
 		return
 	}
 
-	c.HTML(http.StatusOK, "admin_edit_user.html", struct {
-		Route   string
-		Alerts  []FlashData
-		Session SessionData
-		Static  StaticData
-		User    users.User
-		Device  Device
-		Epoch   time.Time
-	}{
-		Route:   c.Request.URL.Path,
-		Alerts:  GetFlashes(c),
-		Session: currentSession,
-		Static:  s.getStaticData(),
-		User:    currentSession.FormData.(users.User),
-		Device:  s.peers.GetDevice(),
+	c.HTML(http.StatusOK, "admin_edit_user.html", gin.H{
+		"Route":       c.Request.URL.Path,
+		"Alerts":      GetFlashes(c),
+		"Session":     currentSession,
+		"Static":      s.getStaticData(),
+		"User":        currentSession.FormData.(users.User),
+		"Device":      s.peers.GetDevice(currentSession.DeviceName),
+		"DeviceNames": s.GetDeviceNames(),
+		"Epoch":       time.Time{},
+		"Csrf":        csrf.GetToken(c),
 	})
 }
 
@@ -160,21 +149,16 @@ func (s *Server) GetAdminUsersCreate(c *gin.Context) {
 		return
 	}
 
-	c.HTML(http.StatusOK, "admin_edit_user.html", struct {
-		Route   string
-		Alerts  []FlashData
-		Session SessionData
-		Static  StaticData
-		User    users.User
-		Device  Device
-		Epoch   time.Time
-	}{
-		Route:   c.Request.URL.Path,
-		Alerts:  GetFlashes(c),
-		Session: currentSession,
-		Static:  s.getStaticData(),
-		User:    currentSession.FormData.(users.User),
-		Device:  s.peers.GetDevice(),
+	c.HTML(http.StatusOK, "admin_edit_user.html", gin.H{
+		"Route":       c.Request.URL.Path,
+		"Alerts":      GetFlashes(c),
+		"Session":     currentSession,
+		"Static":      s.getStaticData(),
+		"User":        currentSession.FormData.(users.User),
+		"Device":      s.peers.GetDevice(currentSession.DeviceName),
+		"DeviceNames": s.GetDeviceNames(),
+		"Epoch":       time.Time{},
+		"Csrf":        csrf.GetToken(c),
 	})
 }
 
@@ -218,7 +202,7 @@ func (s *Server) PostAdminUsersCreate(c *gin.Context) {
 	formUser.IsAdmin = c.PostForm("isadmin") == "true"
 	formUser.Source = users.UserSourceDatabase
 
-	if err := s.CreateUser(formUser); err != nil {
+	if err := s.CreateUser(formUser, currentSession.DeviceName); err != nil {
 		_ = s.updateFormInSession(c, formUser)
 		SetFlashMessage(c, "failed to add user: "+err.Error(), "danger")
 		c.Redirect(http.StatusSeeOther, "/admin/users/create?formerr=create")
